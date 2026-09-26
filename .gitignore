@@ -1,0 +1,10 @@
+# Dependencies & Build artifacts
+node_modules/
+.next/
+dist/
+build/
+.env
+.env.local
+.DS_Store
+npm-debug.log
+.prisma/
