@@ -1,152 +1,218 @@
 'use client';
 
 import { useState } from 'react';
-import { UploadCloud, ShieldAlert, FileText, Settings, CheckCircle2, AlertTriangle, ArrowRight } from 'lucide-react';
+import { UploadCloud, ShieldAlert, FileText, CheckCircle2, AlertTriangle, ArrowRight, Sun, Moon, AlignLeft, FileType, Key, Globe } from 'lucide-react';
 
 export default function Home() {
+  const [inputType, setInputType] = useState<'file' | 'text'>('file');
+  const [docType, setDocType] = useState('employment');
+  const [targetLanguage, setTargetLanguage] = useState('english');
   const [file, setFile] = useState<File | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [hasResults, setHasResults] = useState(false);
+  const [pastedText, setPastedText] = useState('');
   const [customApiKey, setCustomApiKey] = useState('');
-  const [showSettings, setShowSettings] = useState(false);
 
-  const handleSimulateAnalysis = (e: React.FormEvent) => {
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [result, setResult] = useState<any>(null);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  const handleScan = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file) return;
-    
-    setIsAnalyzing(true);
-    setHasResults(false);
+    if (inputType === 'file' && !file) return;
+    if (inputType === 'text' && !pastedText.trim()) return;
 
-    // Simulate AI parsing delay for the MVP demo
-    setTimeout(() => {
+    setIsAnalyzing(true);
+    setErrorMessage('');
+    setResult(null);
+
+    try {
+      // For file uploads in this MVP step, we read text or send text payload
+      const textToSend = inputType === 'text' ? pastedText : "Simulated extracted text from uploaded document file...";
+
+      const res = await fetch('http://localhost:5000/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          documentText: textToSend,
+          docType,
+          targetLanguage,
+          customApiKey: customApiKey.trim() || undefined,
+          clientIdentifier: 'local-user-session', // simple session tracking for 3/day limit
+        }),
+      });
+
+      const data = await res.json();
+      if (!data.success) {
+        setErrorMessage(data.error || 'Analysis failed.');
+      } else {
+        setResult(data);
+      }
+    } catch (err) {
+      setErrorMessage('Could not connect to the backend server. Make sure Express is running.');
+    } finally {
       setIsAnalyzing(false);
-      setHasResults(true);
-    }, 2000);
+    }
   };
 
-  return (
-    <main className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
-      {/* Navbar */}
-      <nav className="border-b border-slate-800 px-6 py-4 flex justify-between items-center max-w-7xl mx-auto w-full">
-        <div className="flex items-center gap-2">
-          <ShieldAlert className="w-6 h-6 text-red-500" />
-          <span className="font-bold text-xl tracking-tight">Clear<span className="text-red-500">Clause</span></span>
-          <span className="text-xs bg-red-500/10 text-red-400 px-2 py-0.5 rounded-full border border-red-500/20 ml-2">South Africa MVP</span>
-        </div>
-        <button 
-          onClick={() => setShowSettings(!showSettings)}
-          className="flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg"
-        >
-          <Settings className="w-4 h-4" />
-          <span>API Settings</span>
-        </button>
-      </nav>
+  const docTypes = [
+    { value: 'employment', label: 'Employment Contract' },
+    { value: 'loan', label: 'Loan Agreement' },
+    { value: 'lease', label: 'Residential Lease' },
+    { value: 'tos', label: 'Terms of Service' },
+  ];
 
-      {/* Settings Modal Dropdown */}
-      {showSettings && (
-        <div className="max-w-7xl mx-auto w-full px-6 pt-4">
-          <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex flex-col gap-3">
-            <h3 className="text-sm font-semibold text-slate-300">Custom AI Key Configuration</h3>
-            <p className="text-xs text-slate-400">Provide your own API key to bypass default rate limits or use your preferred LLM endpoint.</p>
-            <div className="flex gap-2">
-              <input 
-                type="password" 
-                placeholder="Enter your AI API Key (optional)" 
-                value={customApiKey}
-                onChange={(e) => setCustomApiKey(e.target.value)}
-                className="bg-slate-950 border border-slate-800 px-3 py-2 rounded-lg text-sm flex-1 text-slate-200 focus:outline-none focus:border-red-500"
-              />
+  const languages = [
+    { value: 'english', label: 'English' },
+    { value: 'zulu', label: 'isiZulu' },
+    { value: 'afrikaans', label: 'Afrikaans' },
+    { value: 'sesotho', label: 'Sesotho' },
+    { value: 'xhosa', label: 'isiXhosa' },
+  ];
+
+  return (
+    <div className={isDarkMode ? 'dark' : ''}>
+      <main className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col transition-colors duration-200">
+        
+        {/* Navbar */}
+        <nav className="border-b border-slate-200 dark:border-slate-800 px-6 py-4 flex justify-between items-center max-w-7xl mx-auto w-full sticky top-0 bg-white/95 dark:bg-slate-950/95 backdrop-blur-sm z-10 shadow-sm">
+          <div className="flex items-center gap-2">
+            <div className="bg-red-600 p-2 rounded-xl text-white">
+              <ShieldAlert className="w-5 h-5" />
+            </div>
+            <span className="font-bold text-xl tracking-tight">Clear<span className="text-red-600 dark:text-red-500">Clause</span></span>
+            <span className="text-xs bg-red-100 dark:bg-red-500/10 text-red-700 dark:text-red-400 px-2.5 py-0.5 rounded-full border border-red-200 dark:border-red-500/20 ml-2 font-medium">South Africa</span>
+          </div>
+
+          <button 
+            onClick={() => setIsDarkMode(!isDarkMode)}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm font-medium"
+          >
+            {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
+            <span className="hidden sm:inline">{isDarkMode ? 'Light Mode' : 'Dark Mode'}</span>
+          </button>
+        </nav>
+
+        {/* Main Form Container */}
+        <div className="max-w-3xl mx-auto px-6 py-10 flex-1 w-full">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-3 text-slate-950 dark:text-white">
+              Democratizing Legal Literacy in <span className="text-red-600 dark:text-red-500">Mzansi</span>
+            </h1>
+            <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-base max-w-xl mx-auto">
+              Translate complex contracts, spot POPI Act breaches, and read summaries in your home language. Free tier allows 3 scans per day.
+            </p>
+          </div>
+
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 md:p-8 rounded-2xl shadow-xl flex flex-col gap-6">
+            
+            {/* Options Row (Doc Type & Language) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">Document Type</label>
+                <select 
+                  value={docType}
+                  onChange={(e) => setDocType(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 px-3 py-2.5 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-600"
+                >
+                  {docTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider flex items-center gap-1.5">
+                  <Globe className="w-3.5 h-3.5 text-red-600" />
+                  Output Language
+                </label>
+                <select 
+                  value={targetLanguage}
+                  onChange={(e) => setTargetLanguage(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 px-3 py-2.5 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-600"
+                >
+                  {languages.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
+                </select>
+              </div>
+            </div>
+
+            {/* Input Mode Tabs */}
+            <div className="flex border-b border-slate-200 dark:border-slate-800 gap-2">
               <button 
-                onClick={() => setShowSettings(false)}
-                className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                onClick={() => setInputType('file')}
+                className={`pb-2 px-3 font-medium text-sm border-b-2 transition-colors ${inputType === 'file' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500'}`}
               >
-                Save Key
+                Upload File
+              </button>
+              <button 
+                onClick={() => setInputType('text')}
+                className={`pb-2 px-3 font-medium text-sm border-b-2 transition-colors ${inputType === 'text' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500'}`}
+              >
+                Paste Text
               </button>
             </div>
+
+            <form onSubmit={handleScan} className="flex flex-col gap-5">
+              {inputType === 'file' ? (
+                <label className="border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer bg-slate-50 dark:bg-slate-950/40">
+                  <UploadCloud className="w-10 h-10 text-red-600 mb-2" />
+                  <span className="text-sm font-medium text-slate-800 dark:text-slate-200">{file ? file.name : "Click to upload PDF or photo"}</span>
+                  <input type="file" accept=".pdf,image/*" className="hidden" onChange={(e) => e.target.files && setFile(e.target.files[0])} />
+                </label>
+              ) : (
+                <textarea 
+                  value={pastedText}
+                  onChange={(e) => setPastedText(e.target.value)}
+                  placeholder="Paste contract text here..."
+                  rows={5}
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 p-3.5 rounded-xl text-sm text-slate-900 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-red-600"
+                />
+              )}
+
+              {/* Optional Custom API Key (BYOK) */}
+              <div>
+                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 flex items-center gap-1">
+                  <Key className="w-3 h-3" />
+                  Optional: Bring Your Own API Key (Claude, Gemini, or OpenAI)
+                </label>
+                <input 
+                  type="password"
+                  placeholder="sk-ant-... or AIza... (leave blank to use free base tier)"
+                  value={customApiKey}
+                  onChange={(e) => setCustomApiKey(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 px-3 py-2 rounded-xl text-xs text-slate-900 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-red-600"
+                />
+              </div>
+
+              {errorMessage && (
+                <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 p-3 rounded-xl text-xs text-red-600 dark:text-red-400">
+                  {errorMessage}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={isAnalyzing}
+                className="w-full bg-red-600 hover:bg-red-700 disabled:bg-slate-300 text-white font-semibold py-3 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                {isAnalyzing ? 'Analyzing contract...' : <><span>Scan Contract</span><ArrowRight className="w-4 h-4" /></>}
+              </button>
+            </form>
+
+            {/* Results Display */}
+            {result && (
+              <div className="mt-4 pt-6 border-t border-slate-200 dark:border-slate-800 flex flex-col gap-4 text-left">
+                <div className="flex justify-between items-center bg-slate-100 dark:bg-slate-950 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs">
+                  <span className="font-semibold">Engine Used: <span className="text-red-600">{result.tierUsed}</span></span>
+                  <span className="text-slate-500">Scans remaining today: {result.scansRemaining}</span>
+                </div>
+
+                <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-4 rounded-xl text-sm whitespace-pre-wrap leading-relaxed">
+                  {result.analysis}
+                </div>
+              </div>
+            )}
+
           </div>
         </div>
-      )}
-
-      {/* Hero Section */}
-      <div className="max-w-4xl mx-auto px-6 py-12 text-center flex-1 flex flex-col justify-center">
-        <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight mb-4">
-          Democratizing Legal Literacy & <span className="text-red-500">Digital Protection</span>
-        </h1>
-        <p className="text-slate-400 text-base sm:text-lg mb-8 max-w-2xl mx-auto">
-          Upload any employment contract, loan agreement, or terms of service. We translate complex legalese and flag POPI Act violations instantly.
-        </p>
-
-        {/* Upload Card */}
-        <div className="bg-slate-900 border border-slate-800 p-8 rounded-2xl shadow-2xl">
-          <form onSubmit={handleSimulateAnalysis} className="flex flex-col gap-6">
-            <label className="border-2 border-dashed border-slate-700 hover:border-red-500/50 transition-colors rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer bg-slate-950/50">
-              <UploadCloud className="w-12 h-12 text-red-500 mb-3" />
-              <span className="text-sm font-medium text-slate-200">
-                {file ? file.name : "Click to upload contract (PDF or Photo)"}
-              </span>
-              <span className="text-xs text-slate-500 mt-1">Supports PDF, PNG, JPG up to 10MB</span>
-              <input 
-                type="file" 
-                accept=".pdf,image/*" 
-                className="hidden" 
-                onChange={(e) => e.target.files && setFile(e.target.files[0])} 
-              />
-            </label>
-
-            <button
-              type="submit"
-              disabled={!file || isAnalyzing}
-              className="w-full bg-red-600 hover:bg-red-500 disabled:bg-slate-800 disabled:text-slate-600 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
-            >
-              {isAnalyzing ? (
-                <span>Analyzing POPI Act compliance & risk patterns...</span>
-              ) : (
-                <>
-                  <span>Scan Contract for Risks</span>
-                  <ArrowRight className="w-4 h-4" />
-                </>
-              )}
-            </button>
-          </form>
-
-          {/* Results Section */}
-          {hasResults && (
-            <div className="mt-8 pt-8 border-t border-slate-800 text-left flex flex-col gap-6 animate-fadeIn">
-              <div className="flex items-center justify-between bg-red-500/10 border border-red-500/30 p-4 rounded-xl">
-                <div>
-                  <h4 className="font-bold text-red-400 text-lg">High Risk Detected</h4>
-                  <p className="text-xs text-slate-300">Found 2 potential POPI Act breaches and 1 predatory fee clause.</p>
-                </div>
-                <div className="text-2xl font-black text-red-500 bg-slate-950 px-4 py-2 rounded-lg border border-red-500/40">
-                  85 / 100
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-3">
-                <div className="bg-slate-950 border border-slate-800 p-4 rounded-xl flex items-start gap-3">
-                  <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-                  <div>
-                    <h5 className="text-sm font-semibold text-slate-200">Section 4: Data Selling Clause</h5>
-                    <p className="text-xs text-slate-400 mt-1">This clause permits sharing your personal metadata with third-party marketing affiliates without explicit annual re-consent, violating POPI Act Section 14.</p>
-                  </div>
-                </div>
-
-                <div className="bg-slate-950 border border-slate-800 p-4 rounded-xl flex items-start gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
-                  <div>
-                    <h5 className="text-sm font-semibold text-slate-200">Plain-English Summary</h5>
-                    <p className="text-xs text-slate-400 mt-1">Grade 10 Translation: "You are giving this company permission to sell your phone number and email to other advertisers. You can opt out by writing an email, but they make it difficult."</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-xl text-center">
-                <p className="text-xs font-medium text-amber-400">⚠️ Recommendation: "Do not sign, talk to Legal Aid or your union representative."</p>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }
