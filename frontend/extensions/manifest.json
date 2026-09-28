@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "ClearClause",
+  "version": "1.0.0",
+  "description": "Democratize legal literacy, spot POPI Act violations, and simplify terms of service using AI.",
+  "permissions": [
+    "activeTab",
+    "scripting"
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "host_permissions": [
+    "http://localhost:5000/*"
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "clearclause@local.dev",
+      "strict_min_version": "109.0"
+    }
+  }
+}

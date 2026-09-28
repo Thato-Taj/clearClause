@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ClearClause</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <!-- Logo placeholder -->
+      <div class="logo-area">
+        <span class="logo-icon">⚖️</span>
+        <h2>ClearClause</h2>
+      </div>
+      <p class="tagline">Democratizing Legal Literacy</p>
+    </header>
+
+    <main>
+      <div class="input-section">
+        <label for="contractText">Paste contract or Terms of Service text:</label>
+        <textarea id="contractText" rows="5" placeholder="Paste legalese here..."></textarea>
+        
+        <div class="button-group">
+          <button id="grabPageBtn" class="secondary-btn">Grab Current Page</button>
+          <button id="analyzeBtn" class="primary-btn">Analyze Risk</button>
+        </div>
+      </div>
+
+      <div id="loading" class="hidden">
+        <div class="spinner"></div>
+        <p>Analyzing clauses & checking POPI Act compliance...</p>
+      </div>
+
+      <div id="results" class="hidden">
+        <h3>Analysis Results</h3>
+        <div id="analysisContent"></div>
+      </div>
+    </main>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
