@@ -34,9 +34,52 @@ header {
 }
 
 .tagline {
-  font-size: 12px;
+  font-size: 11px;
   color: #6b7280;
-  margin: 2px 0 0 0;
+  margin: 2px 0 6px 0;
+}
+
+.session-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f3f4f6;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  margin-top: 6px;
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  color: #2563eb;
+  cursor: pointer;
+  font-weight: 600;
+  padding: 0;
+}
+
+.login-card {
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+
+.login-card h4 {
+  margin: 0 0 6px 0;
+  font-size: 12px;
+}
+
+.login-card input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px;
+  font-size: 11px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  margin-bottom: 6px;
 }
 
 label {
@@ -91,6 +134,18 @@ button {
   background-color: #d1d5db;
 }
 
+.success-btn {
+  background-color: #10b981;
+  color: white;
+  font-size: 10px;
+  padding: 4px 8px;
+  flex: unset;
+}
+
+.success-btn:hover {
+  background-color: #059669;
+}
+
 .hidden {
   display: none;
 }
@@ -105,12 +160,19 @@ button {
   overflow-y: auto;
 }
 
-#results h3 {
-  margin-top: 0;
-  font-size: 13px;
-  color: #111827;
+.results-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   border-bottom: 1px solid #f3f4f6;
   padding-bottom: 4px;
+  margin-bottom: 6px;
+}
+
+#results h3 {
+  margin: 0;
+  font-size: 13px;
+  color: #111827;
 }
 
 .spinner {
@@ -126,4 +188,18 @@ button {
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+.save-options-box {
+  display: flex;
+  gap: 6px;
+  margin: 8px 0;
+  padding: 8px;
+  background: #f3f4f6;
+  border-radius: 6px;
+  border: 1px dashed #d1d5db;
+}
+
+.save-options-box button {
+  font-size: 11px;
+  padding: 6px 8px;
 }
