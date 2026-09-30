@@ -6,7 +6,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI } from '@google/genai';
 import admin from 'firebase-admin';
-import TelegramBot from 'node-telegram-bot-api';
+import { createRequire } from 'module';
 
 // Resolve directory paths for ES Modules
 const __filename = fileURLToPath(import.meta.url);
@@ -14,6 +14,9 @@ const __dirname = path.dirname(__filename);
 
 // Explicitly load .env from the root backend folder
 dotenv.config({ path: path.join(__dirname, '../.env') });
+
+const require = createRequire(import.meta.url);
+const TelegramBot = require('node-telegram-bot-api');
 
 let db = null;
 
