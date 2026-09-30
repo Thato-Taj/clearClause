@@ -6,6 +6,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI } from '@google/genai';
 import admin from 'firebase-admin';
+import TelegramBot from 'node-telegram-bot-api';
 
 // Resolve directory paths for ES Modules
 const __filename = fileURLToPath(import.meta.url);
@@ -282,6 +283,48 @@ app.get('/api/history', async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
+// --- Telegram Bot Integration ---
+const TELEGRAM_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+if (TELEGRAM_TOKEN) {
+  const telegramBot = new TelegramBot(TELEGRAM_TOKEN, { polling: true });
+
+  telegramBot.onText(/\/start/, (msg) => {
+    const chatId = msg.chat.id;
+    telegramBot.sendMessage(
+      chatId, 
+      "🛡️ *Welcome to ClearClause AI*!\n\nSend or paste any terms of service, contract, or policy text here, and I will audit it for POPI Act risks and hidden clauses instantly.",
+      { parse_mode: 'Markdown' }
+    );
+  });
+
+  telegramBot.on('message', async (msg) => {
+    const chatId = msg.chat.id;
+    const text = msg.text;
+
+    if (!text || text.startsWith('/')) return;
+
+    try {
+      telegramBot.sendMessage(chatId, "🔍 Analyzing document clauses for risks...");
+
+      const ai = new GoogleGenAI({ apiKey: DEFAULT_KEY });
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: `You are ClearClause, an elite AI legal literacy and digital protection engine built for South Africa. Perform a rigorous audit of the following document text, highlighting POPI Act risks and problematic clauses concisely.\n\nDocument text:\n${text}`,
+      });
+
+      const auditResult = response.text || "Analysis completed.";
+      telegramBot.sendMessage(chatId, `📋 *ClearClause Audit*\n\n${auditResult}`, { parse_mode: 'Markdown' });
+    } catch (err) {
+      console.error('Telegram Bot Error:', err);
+      telegramBot.sendMessage(chatId, "❌ Sorry, an error occurred while processing your document scan.");
+    }
+  });
+
+  console.log('🤖 Telegram bot initialized and listening.');
+} else {
+  console.warn('⚠️ TELEGRAM_BOT_TOKEN missing. Telegram bot is disabled.');
+}
 
 const PORT = process.env.PORT || 5001;
 const server = app.listen(PORT, () => console.log(`ClearClause backend running on port ${PORT}`));
