@@ -8,7 +8,6 @@
 <body>
   <div class="container">
     <header>
-      <!-- Logo placeholder -->
       <div class="logo-area">
         <span class="logo-icon">⚖️</span>
         <h2>ClearClause</h2>
@@ -21,6 +20,14 @@
         <label for="contractText">Paste contract or Terms of Service text:</label>
         <textarea id="contractText" rows="5" placeholder="Paste legalese here..."></textarea>
         
+        <!-- Custom API Key Section -->
+        <div class="api-key-section" style="margin: 8px 0;">
+          <details>
+            <summary style="font-size: 11px; cursor: pointer; color: #4b5563;">⚙️ Custom API Key (Optional for unlimited scans)</summary>
+            <input type="password" id="customApiKey" placeholder="Enter Gemini, OpenAI, Anthropic, or xAI key..." style="width: 100%; margin-top: 4px; padding: 6px; font-size: 11px; border: 1px solid #d1d5db; border-radius: 4px;" />
+          </details>
+        </div>
+
         <div class="button-group">
           <button id="grabPageBtn" class="secondary-btn">Grab Current Page</button>
           <button id="analyzeBtn" class="primary-btn">Analyze Risk</button>
@@ -33,7 +40,17 @@
       </div>
 
       <div id="results" class="hidden">
-        <h3>Analysis Results</h3>
+        <div class="results-header">
+          <h3>Analysis Results</h3>
+          <button id="saveScanBtn" class="success-btn">💾 Save Scan</button>
+        </div>
+
+        <!-- Save Options Panel -->
+        <div id="saveOptions" class="hidden save-options-box">
+          <button id="savePdfBtn" class="secondary-btn">📄 Save as PDF</button>
+          <button id="saveWebBtn" class="primary-btn">🌐 Save to Website</button>
+        </div>
+
         <div id="analysisContent"></div>
       </div>
     </main>
