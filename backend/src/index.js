@@ -2,10 +2,10 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI } from '@google/genai';
 import admin from 'firebase-admin';
-import { createRequire } from 'module';
 
 // Resolve directory paths for ES Modules
 const __filename = fileURLToPath(import.meta.url);
@@ -14,18 +14,30 @@ const __dirname = path.dirname(__filename);
 // Explicitly load .env from the root backend folder
 dotenv.config({ path: path.join(__dirname, '../.env') });
 
-const require = createRequire(import.meta.url);
 let db = null;
 
 try {
-  let serviceAccount;
-  try {
-    // Tries local development path first (inside src/)
-    serviceAccount = require('./serviceAccountKey.json');
-  } catch (localErr) {
-    // Falls back to Render production root path (one level up)
-    serviceAccount = require('../serviceAccountKey.json');
+  // Check all possible locations where Render or local dev might place the file
+  const possiblePaths = [
+    path.join(__dirname, 'serviceAccountKey.json'),           // Local dev (inside src/)
+    path.join(__dirname, '../serviceAccountKey.json'),        // Render root of backend package
+    path.join(process.cwd(), 'serviceAccountKey.json'),       // Process current working directory
+    '/opt/render/project/src/backend/serviceAccountKey.json'  // Absolute Render path
+  ];
+
+  let resolvedPath = null;
+  for (const filePath of possiblePaths) {
+    if (fs.existsSync(filePath)) {
+      resolvedPath = filePath;
+      break;
+    }
   }
+
+  if (!resolvedPath) {
+    throw new Error('serviceAccountKey.json not found in any checked directory.');
+  }
+
+  const serviceAccount = JSON.parse(fs.readFileSync(resolvedPath, 'utf8'));
 
   if (!admin.apps || admin.apps.length === 0) {
     admin.initializeApp({
@@ -33,7 +45,7 @@ try {
     });
   }
   db = admin.firestore();
-  console.log('🔥 Connected to Firestore successfully.');
+  console.log(`🔥 Connected to Firestore successfully using key at: ${resolvedPath}`);
 } catch (e) {
   console.error('❌ Firestore Initialization Error:', e.message);
   console.warn('⚠️ Firestore persistence is disabled due to the error above.');
