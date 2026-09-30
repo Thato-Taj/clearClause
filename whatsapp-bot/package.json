@@ -2,17 +2,20 @@
   "name": "whatsapp-bot",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "telegram.js",
+  "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js"
+    "start": "node telegram.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@google/genai": "^0.1.1",
     "dotenv": "^18.0.4",
     "express": "^5.2.1",
     "pdf-parse": "^2.4.5"
   }
+  
 }
