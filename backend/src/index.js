@@ -16,17 +16,19 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.join(__dirname, '../.env') });
 
 const require = createRequire(import.meta.url);
-const TelegramBot = require('node-telegram-bot-api');
+const tgModule = require('node-telegram-bot-api');
+const TelegramBot = tgModule.default || tgModule;
 
 let db = null;
 
 try {
-  // Check all possible locations where Render or local dev might place the file
+  // Check all possible locations where Render Secret Files or local dev might place the file
   const possiblePaths = [
     path.join(__dirname, 'serviceAccountKey.json'),           // Local dev (inside src/)
     path.join(__dirname, '../serviceAccountKey.json'),        // Render root of backend package
     path.join(process.cwd(), 'serviceAccountKey.json'),       // Process current working directory
-    '/opt/render/project/src/backend/serviceAccountKey.json'  // Absolute Render path
+    '/opt/render/project/src/backend/serviceAccountKey.json', // Absolute Render path
+    '/opt/render/project/src/serviceAccountKey.json'          // Render Secret Files root mount
   ];
 
   let resolvedPath = null;
@@ -38,7 +40,7 @@ try {
   }
 
   if (!resolvedPath) {
-    throw new Error('serviceAccountKey.json not found in any checked directory.');
+    throw new Error('serviceAccountKey.json not found in any checked directory. Make sure you added it as a Render Secret File.');
   }
 
   const serviceAccount = JSON.parse(fs.readFileSync(resolvedPath, 'utf8'));
