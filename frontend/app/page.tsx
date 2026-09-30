@@ -153,7 +153,9 @@ export default function Home() {
 
       const clientIdentifier = user?.email ? user.email : 'anonymous-user';
 
-      const res = await fetch('http://localhost:5000/api/analyze', {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
+      const res = await fetch(`${API_BASE_URL}/api/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -178,7 +180,7 @@ export default function Home() {
         }
       }
     } catch (err) {
-      setErrorMessage('Could not connect to the backend server. Make sure Express is running on port 5000.');
+      setErrorMessage('Could not connect to the backend server. Please verify your backend URL configuration.');
     } finally {
       setIsAnalyzing(false);
     }
