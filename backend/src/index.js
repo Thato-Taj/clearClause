@@ -18,7 +18,15 @@ const require = createRequire(import.meta.url);
 let db = null;
 
 try {
-  const serviceAccount = require('./serviceAccountKey.json');
+  let serviceAccount;
+  try {
+    // Tries local development path first (inside src/)
+    serviceAccount = require('./serviceAccountKey.json');
+  } catch (localErr) {
+    // Falls back to Render production root path (one level up)
+    serviceAccount = require('../serviceAccountKey.json');
+  }
+
   if (!admin.apps || admin.apps.length === 0) {
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount)
