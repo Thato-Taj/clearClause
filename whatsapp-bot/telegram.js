@@ -1,7 +1,13 @@
-const express = require('express');
-const pdfParse = require('pdf-parse');
+import express from 'express';
+import dotenv from 'dotenv';
+import pdfParse from 'pdf-parse';
+import { GoogleGenAI } from '@google/genai';
 
-const router = express.Router();
+// Load .env directly from root of whatsapp-bot/
+dotenv.config();
+
+const app = express();
+app.use(express.json({ limit: '10mb' }));
 
 // In-memory session tracker: chatId -> { apiKey, trialsLeft, mode }
 const userSessions = new Map();
@@ -17,7 +23,7 @@ function getSession(chatId) {
   return userSessions.get(chatId);
 }
 
-// Multimodal AI execution helper (supports text, PDF text, and images)
+// Multimodal AI execution helper
 async function executeAiAnalysis(apiKey, documentText, fileBuffer = null, mimeType = null) {
   const prompt = `
     You are ClearClause legal AI. Analyze the following contract text or document image for South African legal compliance and POPI Act breaches. 
@@ -34,7 +40,7 @@ async function executeAiAnalysis(apiKey, documentText, fileBuffer = null, mimeTy
   const base64Data = hasImage ? fileBuffer.toString('base64') : null;
 
   // 1. Anthropic Claude (Multimodal Vision supported)
-  if (apiKey.startsWith('sk-ant-')) {
+  if (apiKey && apiKey.startsWith('sk-ant-')) {
     const contentPayload = [];
     if (hasImage) {
       contentPayload.push({
@@ -61,25 +67,8 @@ async function executeAiAnalysis(apiKey, documentText, fileBuffer = null, mimeTy
     if (!res.ok) throw new Error(data.error?.message || 'Anthropic API error');
     return data.content[0].text;
 
-  // 2. xAI Grok
-  } else if (apiKey.startsWith('xai-')) {
-    const res = await fetch('https://api.x.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: 'grok-2-latest',
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error?.message || 'xAI API error');
-    return data.choices[0].message.content;
-
-  // 3. OpenAI GPT-4o (Multimodal Vision supported)
-  } else if (apiKey.startsWith('sk-')) {
+  // 2. OpenAI GPT-4o (Multimodal Vision supported)
+  } else if (apiKey && apiKey.startsWith('sk-')) {
     const contentPayload = [{ type: 'text', text: prompt }];
     if (hasImage) {
       contentPayload.push({
@@ -103,18 +92,15 @@ async function executeAiAnalysis(apiKey, documentText, fileBuffer = null, mimeTy
     if (!res.ok) throw new Error(data.error?.message || 'OpenAI API error');
     return data.choices[0].message.content;
 
-  // 4. Google Gemini (Native Multimodal Vision supported)
+  // 3. Google Gemini (Default)
   } else {
-    const { GoogleGenAI } = require('@google/genai');
-    const ai = new GoogleGenAI({ apiKey });
+    const activeKey = apiKey || process.env.GOOGLE_API_KEY;
+    const ai = new GoogleGenAI({ apiKey: activeKey });
     const contents = [prompt];
     
     if (hasImage) {
       contents.push({
-        inlineData: {
-          data: base64Data,
-          mimeType: mimeType
-        }
+        inlineData: { data: base64Data, mimeType: mimeType }
       });
     }
 
@@ -126,22 +112,18 @@ async function executeAiAnalysis(apiKey, documentText, fileBuffer = null, mimeTy
   }
 }
 
-// Helper to send message back to Telegram chat
 async function sendTelegramMessage(chatId, text) {
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  if (!botToken) return;
   await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text: text,
-      parse_mode: 'Markdown'
-    })
+    body: JSON.stringify({ chat_id: chatId, text: text, parse_mode: 'Markdown' })
   });
 }
 
-router.post('/webhook', async (req, res) => {
-  // Immediately acknowledge Telegram's webhook request
+// Webhook endpoint
+app.post('/webhook', async (req, res) => {
   res.status(200).send('OK');
 
   const message = req.body.message;
@@ -150,34 +132,26 @@ router.post('/webhook', async (req, res) => {
   const chatId = message.chat.id;
   const incomingMsg = message.text || message.caption || '';
   const session = getSession(chatId);
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
 
   try {
-    // 1. Handle API Key registration command
     if (incomingMsg.toUpperCase().startsWith('KEY:') || incomingMsg.toUpperCase().startsWith('APIKEY:')) {
       const keyMatch = incomingMsg.split(/[:\s]+/)[1];
       if (keyMatch && keyMatch.length > 10) {
         session.apiKey = keyMatch;
         session.mode = 'byok';
-        await sendTelegramMessage(chatId, 
-          "🔑 *Custom API Key Registered Successfully!*\n" +
-          "You are now on the **BYOK Unlimited Tier**. Send text, PDFs, or contract photos to analyze.\n\n" +
-          "*(To update your key anytime, send `KEY: <your-key>`)*"
-        );
+        await sendTelegramMessage(chatId, "🔑 *Custom API Key Registered Successfully!*\nYou are now on the **BYOK Unlimited Tier**.");
       } else {
-        await sendTelegramMessage(chatId, "⚠️ Invalid key format. Please send your key as:\n`KEY: AIza...` or `KEY: sk-...`");
+        await sendTelegramMessage(chatId, "⚠️ Invalid key format. Send as: `KEY: AIza...` or `KEY: sk-...`");
       }
       return;
     }
 
-    // 2. Handle Greeting / Help / Menu
     if (['/start', '/help', 'hi', 'hello', 'menu'].includes(incomingMsg.toLowerCase())) {
       await sendTelegramMessage(chatId,
-        "👋 Welcome to *ClearClause SA*!\n\n" +
-        "• Send text, upload a PDF contract, or snap/upload a photo of a document here to check for *POPI Act breaches*.\n\n" +
-        `📊 *Current Status:* ${session.mode === 'byok' ? '⚡ BYOK Unlimited' : `🆓 Free Base Model (${session.trialsLeft}/3 trials left)`}\n\n` +
-        "💡 *Options:*\n" +
-        "• Send a file/photo or text directly to use your free trial.\n" +
-        "• Send `KEY: your_api_key` to unlock unlimited scans with your own AI key."
+        "👋 Welcome to *ClearClause Bot*!\n\n" +
+        "• Send text, upload a PDF contract, or send a photo to check for *POPI Act breaches*.\n\n" +
+        `📊 *Status:* ${session.mode === 'byok' ? '⚡ BYOK Unlimited' : `🆓 Free Base Model (${session.trialsLeft}/3 trials left)`}`
       );
       return;
     }
@@ -185,84 +159,60 @@ router.post('/webhook', async (req, res) => {
     let textToAnalyze = incomingMsg;
     let fileBuffer = null;
     let mimeType = null;
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
 
-    // 3. Handle Document (PDF) Upload
-    if (message.document) {
+    if (message.document && botToken) {
       const doc = message.document;
       const fileMetaRes = await fetch(`https://api.telegram.org/bot${botToken}/getFile?file_id=${doc.file_id}`);
       const fileMetaData = await fileMetaRes.json();
       
       if (fileMetaData.ok) {
-        const filePath = fileMetaData.result.file_path;
-        const fileDownloadRes = await fetch(`https://api.telegram.org/file/bot${botToken}/${filePath}`);
-        const arrayBuffer = await fileDownloadRes.arrayBuffer();
-        fileBuffer = Buffer.from(arrayBuffer);
-
-        if (doc.mime_type === 'application/pdf' || doc.file_name?.endsWith('.pdf')) {
-          const parsedPdf = await pdfParse(fileBuffer);
-          textToAnalyze = parsedPdf.text;
-        } else {
-          textToAnalyze = fileBuffer.toString('utf-8');
-        }
+        const fileDownloadRes = await fetch(`https://api.telegram.org/file/bot${botToken}/${fileMetaData.result.file_path}`);
+        fileBuffer = Buffer.from(await fileDownloadRes.arrayBuffer());
+        textToAnalyze = doc.mime_type === 'application/pdf' ? (await pdfParse(fileBuffer)).text : fileBuffer.toString('utf-8');
       }
     }
 
-    // 4. Handle Photo Upload
-    if (message.photo && message.photo.length > 0) {
-      // Telegram sends multiple sizes; pick the largest one (last in array)
+    if (message.photo && message.photo.length > 0 && botToken) {
       const photo = message.photo[message.photo.length - 1];
       const fileMetaRes = await fetch(`https://api.telegram.org/bot${botToken}/getFile?file_id=${photo.file_id}`);
       const fileMetaData = await fileMetaRes.json();
 
       if (fileMetaData.ok) {
-        const filePath = fileMetaData.result.file_path;
-        const fileDownloadRes = await fetch(`https://api.telegram.org/file/bot${botToken}/${filePath}`);
-        const arrayBuffer = await fileDownloadRes.arrayBuffer();
-        fileBuffer = Buffer.from(arrayBuffer);
+        const fileDownloadRes = await fetch(`https://api.telegram.org/file/bot${botToken}/${fileMetaData.result.file_path}`);
+        fileBuffer = Buffer.from(await fileDownloadRes.arrayBuffer());
         mimeType = 'image/jpeg';
-        textToAnalyze = incomingMsg || "Please analyze this contract image for POPI Act compliance and hidden risk clauses.";
+        textToAnalyze = incomingMsg || "Please analyze this contract image for POPI Act compliance.";
       }
     }
 
     if (!textToAnalyze && !fileBuffer) {
-      await sendTelegramMessage(chatId, "⚠️ No readable content found. Please send text, upload a PDF document, or send a photo of the contract.");
+      await sendTelegramMessage(chatId, "⚠️ No readable content found. Please send text, a PDF, or a photo.");
       return;
     }
 
-    // Determine Active Key and Enforce 3-Trial Limit
-    let activeKey = process.env.GEMINI_API_KEY;
-
+    let activeKey = process.env.GOOGLE_API_KEY;
     if (session.mode === 'byok') {
       activeKey = session.apiKey;
     } else {
       if (session.trialsLeft <= 0) {
-        await sendTelegramMessage(chatId,
-          "🔒 *Free Trial Limit Reached*\n\n" +
-          "You have used all 3 free trials of the ClearClause base model. The base tier is now locked.\n\n" +
-          "🔑 *To continue scanning documents, please enter your own API key by sending:*\n`KEY: your_api_key_here`"
-        );
+        await sendTelegramMessage(chatId, "🔒 *Free Trial Limit Reached*\n\nSend `KEY: your_api_key` to continue.");
         return;
       }
       session.trialsLeft -= 1;
     }
 
-    // Execute AI Analysis
     const analysisText = await executeAiAnalysis(activeKey, textToAnalyze, fileBuffer, mimeType);
-
     const statusFooter = session.mode === 'byok'
       ? "\n\n━━━━━━━━━━━━━━━━━━━━\n⚡ *Tier:* Custom BYOK (Unlimited)"
-      : `\n\n━━━━━━━━━━━━━━━━━━━━\n🆓 *Tier:* Free Base Model | *Trials Left:* ${session.trialsLeft}/3\n💡 *Want unlimited?* Send \`KEY: <your-key>\``;
+      : `\n\n━━━━━━━━━━━━━━━━━━━━\n🆓 *Tier:* Free Base Model | *Trials Left:* ${session.trialsLeft}/3`;
 
     await sendTelegramMessage(chatId, `⚖️ *ClearClause Analysis Result*\n\n${analysisText}${statusFooter}`);
 
   } catch (error) {
-    console.error('Telegram Processing error:', error);
-    await sendTelegramMessage(chatId, 
-      "⚠️ Sorry, we encountered an error processing your document or image.\n\n" +
-      `📊 *Status:* ${session.mode === 'byok' ? '⚡ BYOK Tier' : `🆓 Base Model (${session.trialsLeft}/3 trials left)`}`
-    );
+    console.error('Bot Error:', error);
+    await sendTelegramMessage(chatId, "⚠️ Sorry, an error occurred while processing your document.");
   }
 });
 
-module.exports = router;
+const PORT = process.env.PORT || 5002;
+app.listen(PORT, () => console.log(`🤖 WhatsApp/Telegram bot service running on port ${PORT}`));
