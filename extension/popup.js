@@ -19,14 +19,15 @@ const BAND_LABEL = {
   high: 'High risk',
   critical: 'Critical risk',
 };
+/** [short, full name, plain description] — mirrors frontend/lib/site.ts. */
 const ACTS = {
-  POPIA: ['POPIA', 'Protection of Personal Information Act'],
-  CPA: ['CPA', 'Consumer Protection Act'],
-  NCA: ['NCA', 'National Credit Act'],
-  ECTA: ['ECTA', 'Electronic Communications and Transactions Act'],
-  BCEA: ['BCEA', 'Basic Conditions of Employment Act'],
-  LRA: ['LRA', 'Labour Relations Act'],
-  RHA: ['Rental Housing', 'Rental Housing Act'],
+  POPIA: ['POPIA', 'Protection of Personal Information Act', 'How companies collect, use, share and keep your personal information.'],
+  CPA: ['CPA', 'Consumer Protection Act', 'Your rights when you buy goods or services from a business.'],
+  NCA: ['NCA', 'National Credit Act', 'Your rights when you borrow money or buy on credit.'],
+  ECTA: ['ECTA', 'Electronic Communications and Transactions Act', 'Rules for online shopping, websites and agreements you accept online.'],
+  BCEA: ['BCEA', 'Basic Conditions of Employment Act', 'Minimum rules for working hours, leave, pay and deductions.'],
+  LRA: ['LRA', 'Labour Relations Act', 'Protection from unfair dismissal and unfair treatment at work.'],
+  RHA: ['Rental Housing', 'Rental Housing Act', 'Rights of tenants and landlords in a home rental.'],
 };
 
 /** Keys written by the old popup (≤1.0). `analysisHTML` held unsanitised markup, so it must go. */
@@ -121,7 +122,8 @@ async function api(path, { method = 'GET', body, timeoutMs = 20_000 } = {}) {
 function quotaText(q) {
   if (!q) return '';
   if (q.limit === -1) return 'unlimited scans';
-  return `${q.remaining} of ${q.limit} scans left today`;
+  const per = q.periodDays === 1 ? 'a day' : `every ${q.periodDays} days`;
+  return `${q.remaining} of ${q.limit} scans left (${q.limit} ${per})`;
 }
 
 function renderStatus() {
@@ -397,15 +399,37 @@ function findingItem(clause, open) {
         el('p', { text: clause.explanation }),
         el('h3', { text: 'What you can do' }),
         el('p', { text: clause.action }),
-        clause.acts?.length > 0 &&
-          el(
-            'ul',
-            { class: 'acts', 'aria-label': 'Laws involved' },
-            clause.acts.map((a) => el('li', { title: ACTS[a.act]?.[1], text: `${ACTS[a.act]?.[0] ?? a.act}${a.section ? ` ${a.section}` : ''}` })),
-          ),
+        lawList(clause.acts),
       ),
     ),
   );
+}
+
+/** One line per Act with its sections merged ("CPA s 48, s 51"), its name and what it covers. */
+function lawList(acts) {
+  if (!acts?.length) return null;
+  const byAct = new Map();
+  for (const { act, section } of acts) {
+    const sections = byAct.get(act) ?? [];
+    if (section && !sections.includes(section)) sections.push(section);
+    byAct.set(act, sections);
+  }
+  return [
+    el('h3', { text: byAct.size === 1 ? 'The law' : 'The laws' }),
+    el(
+      'ul',
+      { class: 'acts', 'aria-label': 'Laws involved' },
+      [...byAct].map(([act, sections]) => {
+        const [short, name, plain] = ACTS[act] ?? [act, act, ''];
+        return el(
+          'li',
+          {},
+          el('span', { class: 'act-chip', text: sections.length ? `${short} ${sections.join(', ')}` : short }),
+          el('span', { class: 'act-text' }, el('strong', { text: name }), plain && ` — ${plain}`),
+        );
+      }),
+    ),
+  ];
 }
 
 function showResults({ result: r, scanId }) {

@@ -1,79 +1,111 @@
 import { db, FieldValue, Timestamp } from '../firebase.js';
 import { saDate } from './util.js';
 
-// Fallback when Firestore isn't configured (local development only — resets on restart).
+const DAY_MS = 86_400_000;
+
+// Fallback when Firestore isn't configured (local development and tests — resets on restart).
 const memory = new Map();
 
-const docId = (key, date) => `${key}__${date}`;
+/**
+ * @typedef {{scans: number, periodDays: number}} Allowance  scans -1 = unlimited
+ * @typedef {{used: number|null, limit: number, remaining: number, periodDays: number, nextAt: string|null}} Usage
+ */
 
 /**
- * Atomically use one scan from today's allowance.
- * @param {string} key   e.g. "uid:abc", "anon:<hash>", "telegram:<hash>"
- * @param {number} limit daily scans, -1 = unlimited
+ * Rolling window: a check counts against the allowance for `periodDays` after it was used, then frees up.
+ * Unlike calendar fortnights, nobody can get 6 checks in 2 days by straddling a reset.
+ * @param {number[]} stamps times (ms) of earlier checks
+ * @returns {{recent: number[], usage: Usage}}
  */
-export async function consume(key, limit) {
-  const date = saDate();
-  if (limit === -1) {
-    // Still count usage for analytics, but never block.
-    await bump(key, date, 1);
-    return { allowed: true, used: null, limit: -1, remaining: -1 };
+function evaluate(stamps, { scans, periodDays }, now) {
+  const windowMs = periodDays * DAY_MS;
+  const recent = (Array.isArray(stamps) ? stamps : []).filter((t) => t > now - windowMs).sort((a, b) => a - b);
+  // The check whose expiry brings `used` back under the limit — or, with room left, the next one to free up.
+  const freesUp = scans > 0 && recent.length ? recent[Math.max(0, recent.length - scans)] : null;
+  return {
+    recent,
+    usage: {
+      used: recent.length,
+      limit: scans,
+      remaining: Math.max(0, scans - recent.length),
+      periodDays,
+      nextAt: freesUp === null ? null : new Date(freesUp + windowMs).toISOString(),
+    },
+  };
+}
+
+/** Decide one check against the stored stamps. `stamps` is null when nothing should be written. */
+function attempt(stored, allowance, now) {
+  const before = evaluate(stored, allowance, now);
+  if (before.usage.remaining === 0) return { stamps: null, result: { allowed: false, ...before.usage, stamp: null } };
+  const after = evaluate([...before.recent, now], allowance, now);
+  return { stamps: after.recent, result: { allowed: true, ...after.usage, stamp: now } };
+}
+
+/**
+ * Atomically use one check from the allowance.
+ * @param {string} key  e.g. "uid:abc", "anon:<hash>", "telegram:<hash>"
+ * @param {Allowance} allowance
+ * @returns {Promise<Usage & {allowed: boolean, stamp: number|null}>} pass `stamp` to refund() to give this check back
+ */
+export async function consume(key, allowance, now = Date.now()) {
+  if (allowance.scans === -1) {
+    // Never blocks; a daily count is kept for usage statistics only.
+    await bumpDaily(key, 1, now);
+    return { allowed: true, used: null, limit: -1, remaining: -1, periodDays: allowance.periodDays, nextAt: null, stamp: null };
   }
 
   if (!db) {
-    const id = docId(key, date);
-    const used = memory.get(id) ?? 0;
-    if (used >= limit) return { allowed: false, used, limit, remaining: 0 };
-    memory.set(id, used + 1);
-    return { allowed: true, used: used + 1, limit, remaining: limit - used - 1 };
+    const { stamps, result } = attempt(memory.get(key), allowance, now);
+    if (stamps) memory.set(key, stamps);
+    return result;
   }
 
-  const ref = db.collection('usage').doc(docId(key, date));
+  const ref = db.collection('usage').doc(key);
   return db.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
-    const used = snap.exists ? snap.data().count || 0 : 0;
-    if (used >= limit) return { allowed: false, used, limit, remaining: 0 };
-    tx.set(
-      ref,
-      {
-        key,
-        date,
-        count: used + 1,
-        // Configure a Firestore TTL policy on `expireAt` so old usage rows delete themselves.
-        expireAt: Timestamp.fromMillis(Date.now() + 1000 * 60 * 60 * 24 * 35),
-      },
-      { merge: true },
-    );
-    return { allowed: true, used: used + 1, limit, remaining: limit - used - 1 };
+    const { stamps, result } = attempt(snap.exists ? snap.data().stamps : [], allowance, now);
+    if (stamps) {
+      // A Firestore TTL policy on `expireAt` deletes the row once its newest check has left the window.
+      tx.set(ref, { key, stamps, expireAt: Timestamp.fromMillis(now + allowance.periodDays * DAY_MS + DAY_MS) });
+    }
+    return result;
   });
 }
 
-/** Give a scan back when the analysis failed through no fault of the user. */
-export async function refund(key) {
-  await bump(key, saDate(), -1);
+/** Give a check back when the analysis failed through no fault of the user. */
+export async function refund(key, stamp) {
+  if (stamp == null) return bumpDaily(key, -1, Date.now());
+  if (!db) {
+    const stamps = memory.get(key) ?? [];
+    const i = stamps.indexOf(stamp);
+    if (i !== -1) memory.set(key, stamps.toSpliced(i, 1));
+    return;
+  }
+  await db.collection('usage').doc(key).set({ stamps: FieldValue.arrayRemove(stamp) }, { merge: true });
 }
 
-async function bump(key, date, delta) {
+/** Current usage without using a check. */
+export async function peek(key, allowance, now = Date.now()) {
+  if (allowance.scans === -1) return { used: null, limit: -1, remaining: -1, periodDays: allowance.periodDays, nextAt: null };
+  let stamps = memory.get(key);
+  if (db) {
+    const snap = await db.collection('usage').doc(key).get();
+    stamps = snap.exists ? snap.data().stamps : [];
+  }
+  return evaluate(stamps, allowance, now).usage;
+}
+
+/** Daily usage counter for unlimited plans (statistics only). */
+async function bumpDaily(key, delta, now) {
+  const date = saDate(new Date(now));
+  const id = `${key}__${date}`;
   if (!db) {
-    const id = docId(key, date);
     memory.set(id, Math.max(0, (memory.get(id) ?? 0) + delta));
     return;
   }
   await db
     .collection('usage')
-    .doc(docId(key, date))
-    .set(
-      { key, date, count: FieldValue.increment(delta), expireAt: Timestamp.fromMillis(Date.now() + 1000 * 60 * 60 * 24 * 35) },
-      { merge: true },
-    );
-}
-
-export async function peek(key, limit) {
-  const date = saDate();
-  let used = 0;
-  if (!db) used = memory.get(docId(key, date)) ?? 0;
-  else {
-    const snap = await db.collection('usage').doc(docId(key, date)).get();
-    used = snap.exists ? Math.max(0, snap.data().count || 0) : 0;
-  }
-  return { used, limit, remaining: limit === -1 ? -1 : Math.max(0, limit - used) };
+    .doc(id)
+    .set({ key, date, count: FieldValue.increment(delta), expireAt: Timestamp.fromMillis(now + 35 * DAY_MS) }, { merge: true });
 }

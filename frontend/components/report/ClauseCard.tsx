@@ -1,7 +1,7 @@
 import { Info } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { ACTS, SEVERITY } from '@/lib/site';
-import type { Clause, Severity } from '@/lib/types';
+import type { ActId, Clause, Severity } from '@/lib/types';
 
 export const severityStyle: Record<Severity, { border: string; chip: string; dot: string }> = {
   violation: { border: 'border-l-red', chip: 'bg-red-bg text-red-ink', dot: 'bg-red' },
@@ -20,6 +20,7 @@ export function SeverityChip({ severity, className }: { severity: Severity; clas
 
 export function ClauseCard({ clause, index }: { clause: Clause; index: number }) {
   const s = severityStyle[clause.severity];
+  const laws = groupByAct(clause.acts);
   return (
     <article
       id={`finding-${clause.id}`}
@@ -60,20 +61,41 @@ export function ClauseCard({ clause, index }: { clause: Clause; index: number })
         </div>
       </div>
 
-      {clause.acts.length > 0 && (
-        <ul className="mt-4 flex flex-wrap gap-2" aria-label="Laws involved">
-          {clause.acts.map((a) => (
-            <li
-              key={`${a.act}-${a.section}`}
-              className="rounded-md border border-line bg-paper-2 px-2 py-0.5 font-mono text-[0.8rem] text-ink-2"
-              title={ACTS[a.act]?.name}
-            >
-              {ACTS[a.act]?.short ?? a.act}
-              {a.section ? ` ${a.section}` : ''}
-            </li>
-          ))}
-        </ul>
+      {laws.length > 0 && (
+        <div className="mt-5 border-t border-line pt-4">
+          <h4 className="text-[0.85rem] font-bold uppercase tracking-wide text-ink-3">
+            {laws.length === 1 ? 'The law' : 'The laws'}
+          </h4>
+          <ul className="mt-2 space-y-3">
+            {laws.map(({ act, sections }) => {
+              const law = ACTS[act];
+              return (
+                <li key={act} className="flex flex-col gap-1.5 sm:flex-row sm:items-baseline sm:gap-3">
+                  <span className="shrink-0 self-start rounded-md border border-line bg-paper-2 px-2 py-0.5 font-mono text-[0.8rem] text-ink-2">
+                    {law?.short ?? act}
+                    {sections.length > 0 && ` ${sections.join(', ')}`}
+                  </span>
+                  <p className="text-[0.95rem] leading-snug">
+                    <span className="font-semibold">{law?.name ?? act}</span>
+                    {law?.plain && <span className="text-ink-2"> — {law.plain}</span>}
+                  </p>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       )}
     </article>
   );
+}
+
+/** One entry per Act, in the order the AI cited them, with its sections merged: "CPA s 48, s 51". */
+function groupByAct(acts: Clause['acts']): { act: ActId; sections: string[] }[] {
+  const byAct = new Map<ActId, string[]>();
+  for (const { act, section } of acts) {
+    const sections = byAct.get(act) ?? [];
+    if (section && !sections.includes(section)) sections.push(section);
+    byAct.set(act, sections);
+  }
+  return [...byAct].map(([act, sections]) => ({ act, sections }));
 }

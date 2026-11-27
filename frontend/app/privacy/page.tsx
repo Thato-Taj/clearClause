@@ -21,7 +21,7 @@ const SECTIONS: { h: string; p: string[] }[] = [
     p: [
       'Account details: your name and e-mail address from Google sign-in, so we can save your reports and apply your plan.',
       'Documents you check: processed only to produce your report, then discarded. Reports contain short quotes from the clauses we flag.',
-      'Usage counts: how many checks you made today, so we can apply daily limits. For people who are not signed in, and for WhatsApp and Telegram users, we store a one-way scrambled code (a “hash”) instead of your IP address, phone number or chat ID.',
+      'Usage records: the times of your recent checks, so we can apply plan limits (for example 3 checks every 14 days). For people who are not signed in, and for WhatsApp and Telegram users, we store a one-way scrambled code (a “hash”) instead of your IP address, phone number or chat ID.',
       'Chat settings: your preferred language for the WhatsApp or Telegram bot, stored against that same scrambled code.',
     ],
   },
@@ -36,7 +36,7 @@ const SECTIONS: { h: string; p: string[] }[] = [
   {
     h: 'How long we keep it',
     p: [
-      'Documents: not kept. Reports: until you delete them or close your account. Daily usage counts: deleted automatically after about 35 days. Connection codes: deleted after 15 minutes.',
+      'Documents: not kept. Reports: until you delete them or close your account. Usage records: deleted automatically within 35 days. Connection codes: deleted after 15 minutes.',
     ],
   },
   {
@@ -58,7 +58,7 @@ export default function PrivacyPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
       <h1 className="font-serif text-4xl font-bold tracking-tight sm:text-5xl">Privacy notice</h1>
-      <p className="mt-3 text-ink-3">Last updated 21 November 2026</p>
+      <p className="mt-3 text-ink-3">Last updated 27 November 2026</p>
       {SECTIONS.map((s) => (
         <section key={s.h} className="mt-10">
           <h2 className="font-serif text-2xl font-bold">{s.h}</h2>

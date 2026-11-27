@@ -83,7 +83,7 @@ export default function Home() {
                 See an example report
               </Link>
             </div>
-            <p className="mt-4 text-[0.95rem] text-ink-3">Free for 3 checks a day. No sign-up needed.</p>
+            <p className="mt-4 text-[0.95rem] text-ink-3">3 free checks every 14 days. No sign-up needed.</p>
           </div>
           <div className="mx-auto w-full max-w-lg py-4">
             <AnnotatedPage />

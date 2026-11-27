@@ -8,7 +8,7 @@ export const canUseBusinessMode = (plan) => plan === 'business';
 
 export function planInfo(plan) {
   const p = config.plans[plan] ?? config.plans.free;
-  return { id: plan, label: p.label, dailyScans: p.dailyScans };
+  return { id: plan, label: p.label, scans: p.scans, periodDays: p.periodDays };
 }
 
 export async function getOrCreateUser(uid, { email = null, name = null } = {}) {

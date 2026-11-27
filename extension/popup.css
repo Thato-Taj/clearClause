@@ -490,21 +490,32 @@ select {
 }
 
 .acts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin: 8px 0 0;
+  display: grid;
+  gap: 8px;
+  margin: 4px 0 0;
   padding: 0;
   list-style: none;
 }
 
-.acts li {
+.act-chip {
+  display: inline-block;
+  margin-right: 6px;
   padding: 0 6px;
   border: 1px solid var(--line);
   border-radius: 5px;
   background: var(--paper-2);
   font: 11.5px/1.6 ui-monospace, monospace;
   color: var(--ink-2);
+}
+
+.act-text {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+
+.act-text strong {
+  color: var(--ink);
 }
 
 .positives { margin: 0; padding-left: 18px; color: var(--ink-2); }

@@ -113,7 +113,7 @@ async function setCommands() {
   await call('setMyCommands', {
     commands: [
       { command: 'help', description: 'How to use ClearClause' },
-      { command: 'status', description: 'Scans left today' },
+      { command: 'status', description: 'Checks you have left' },
       { command: 'language', description: 'Change answer language, e.g. /language isiZulu' },
       { command: 'link', description: 'Connect your account, e.g. /link 123456' },
       { command: 'unlink', description: 'Disconnect your account' },

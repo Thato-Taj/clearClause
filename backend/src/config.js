@@ -44,12 +44,15 @@ export const config = {
     maxBytes: int(process.env.MAX_UPLOAD_MB, 10) * 1024 * 1024,
   },
 
-  /** Daily scan allowance per plan. -1 = unlimited. */
+  /**
+   * Checks allowed per plan, in a rolling window: each check counts for `periodDays` after it was used, then frees up.
+   * scans: -1 = unlimited, 0 = must sign in. Guests and WhatsApp/Telegram users share the Free allowance.
+   */
   plans: {
-    anonymous: { label: 'Guest', dailyScans: int(process.env.QUOTA_ANON, 3) },
-    free: { label: 'Free', dailyScans: int(process.env.QUOTA_FREE, 3) },
-    pro: { label: 'Pro', dailyScans: int(process.env.QUOTA_PRO, 50) },
-    business: { label: 'Business', dailyScans: int(process.env.QUOTA_BUSINESS, -1) },
+    anonymous: { label: 'Guest', scans: int(process.env.QUOTA_ANON, 3), periodDays: int(process.env.QUOTA_ANON_DAYS, 14) },
+    free: { label: 'Free', scans: int(process.env.QUOTA_FREE, 3), periodDays: int(process.env.QUOTA_FREE_DAYS, 14) },
+    pro: { label: 'Pro', scans: int(process.env.QUOTA_PRO, 50), periodDays: int(process.env.QUOTA_PRO_DAYS, 1) },
+    business: { label: 'Business', scans: int(process.env.QUOTA_BUSINESS, -1), periodDays: 1 },
   },
 
   firebase: {

@@ -67,15 +67,19 @@ export interface ScanSummary {
   createdAt: string | null;
 }
 
+/** Rolling window: each check counts for `periodDays` after it was used. limit -1 = unlimited. */
 export interface Quota {
   used: number | null;
   limit: number;
   remaining: number;
+  periodDays: number;
+  /** When the next check frees up (ISO time), or null if none are in use. */
+  nextAt: string | null;
 }
 
 export interface Me {
   user: { uid: string; email: string | null; name: string | null; links: Partial<Record<'telegram' | 'whatsapp', { linkedAt: string }>> } | null;
-  plan: { id: 'anonymous' | 'free' | 'pro' | 'business'; label: string; dailyScans: number };
+  plan: { id: 'anonymous' | 'free' | 'pro' | 'business'; label: string; scans: number; periodDays: number };
   usage: Quota;
   accountsEnabled: boolean;
 }

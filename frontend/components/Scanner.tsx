@@ -8,6 +8,7 @@ import { analyze, getMe, ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { btn, cn } from '@/lib/cn';
 import { LANGUAGES } from '@/lib/site';
+import { allowanceText, nextCheckText } from '@/lib/quota';
 import type { AnalysisResult, Me, Quota } from '@/lib/types';
 
 type Tab = 'file' | 'text' | 'link';
@@ -50,7 +51,7 @@ export function Scanner() {
   const reportRef = useRef<HTMLDivElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
-  // Load plan + today's usage (re-run when the signed-in user changes).
+  // Load plan + current usage (re-run when the signed-in user changes).
   useEffect(() => {
     if (!ready) return;
     let cancelled = false;
@@ -304,7 +305,7 @@ export function Scanner() {
             {error && (
               <div role="alert" className="mt-6 rounded-xl border border-red/30 bg-red-bg p-4 text-red-ink">
                 <p className="font-semibold">{error.message}</p>
-                {error.code === 'quota_exceeded' && (
+                {(error.code === 'quota_exceeded' || error.code === 'auth_required') && (
                   <p className="mt-2 flex flex-wrap gap-3 text-[0.95rem]">
                     {!user && (
                       <button type="button" onClick={() => signIn().catch(() => {})} className="font-semibold underline cursor-pointer">
@@ -323,7 +324,8 @@ export function Scanner() {
               <p className="text-[0.95rem] text-ink-3 sm:flex-1">
                 {left !== null && (
                   <>
-                    <strong className="text-ink">{left}</strong> of {quota!.limit} free checks left today.{' '}
+                    <strong className="text-ink">{left}</strong> of {quota!.limit} checks left — you get {allowanceText(quota!.limit, quota!.periodDays)}.{' '}
+                    {left === 0 && quota!.nextAt && <>Next check: {nextCheckText(quota!.nextAt)}.{' '}</>}
                   </>
                 )}
                 {!user && ready && me?.accountsEnabled !== false && (

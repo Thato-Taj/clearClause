@@ -5,13 +5,33 @@ import { extractFromUrl, parseUserUrl } from './fetchUrl.js';
 import { consume, refund } from '../services/quota.js';
 import { saveScan } from '../services/scans.js';
 import { canUseBusinessMode } from '../services/users.js';
-import { HttpError } from '../services/util.js';
+import { HttpError, allowanceText, nextCheckText } from '../services/util.js';
 
 /**
  * @typedef {{kind: 'user'|'anonymous'|'chat', uid?: string, plan: string, quotaKey: string}} Principal
  */
 
-export const dailyLimit = (principal) => (config.plans[principal.plan] ?? config.plans.free).dailyScans;
+/** @returns {{scans: number, periodDays: number}} */
+export function allowanceFor(principal) {
+  const plan = config.plans[principal.plan] ?? config.plans.free;
+  return { scans: plan.scans, periodDays: plan.periodDays };
+}
+
+function quotaExceeded(principal, allowance, quota) {
+  if (allowance.scans === 0) {
+    return new HttpError(401, 'Please sign in to check a document. It’s free.', { code: 'auth_required', quota });
+  }
+  const paid = principal.plan === 'pro' || principal.plan === 'business';
+  const at = quota.nextAt ? nextCheckText(quota.nextAt) : null;
+  const when = at ? ` Your next ${paid ? '' : 'free '}check is available ${/^(today|tomorrow)/.test(at) ? at : `on ${at}`}.` : '';
+  const hint = principal.kind === 'anonymous'
+    ? ' Sign in to save your reports, or see our plans for more checks.'
+    : paid ? '' : ' Upgrade your plan for more checks.';
+  return new HttpError(429, `You have used all your ${paid ? '' : 'free '}checks (${allowanceText(allowance)}).${when}${hint}`, {
+    code: 'quota_exceeded',
+    quota,
+  });
+}
 
 /** Turn whatever the user gave us into an extraction, before any quota is charged. */
 export async function extractInput({ file, text, url }) {
@@ -33,21 +53,15 @@ export async function runScan({ principal, extraction, language, mode, hint, sav
     throw new HttpError(403, 'Compliance mode (fix suggestions for your own documents) is part of the Business plan.', { code: 'plan_required' });
   }
 
-  const limit = dailyLimit(principal);
-  const quota = await consume(principal.quotaKey, limit);
-  if (!quota.allowed) {
-    const signInHint = principal.kind === 'anonymous' ? ' Sign in for history, or upgrade for more scans.' : ' Upgrade your plan for more scans.';
-    throw new HttpError(429, `You have used all ${limit} free scans for today. They reset at midnight.${signInHint}`, {
-      code: 'quota_exceeded',
-      quota,
-    });
-  }
+  const allowance = allowanceFor(principal);
+  const { allowed, stamp, ...quota } = await consume(principal.quotaKey, allowance);
+  if (!allowed) throw quotaExceeded(principal, allowance, quota);
 
   let result;
   try {
     result = await analyseDocument(extraction, { language, mode, hint });
   } catch (err) {
-    await refund(principal.quotaKey).catch(() => {});
+    await refund(principal.quotaKey, stamp).catch(() => {});
     throw err;
   }
 
@@ -58,5 +72,5 @@ export async function runScan({ principal, extraction, language, mode, hint, sav
     scanId = await saveScan(principal.uid, result, { channel, fileName });
   }
 
-  return { result, scanId, quota: { used: quota.used, limit: quota.limit, remaining: quota.remaining } };
+  return { result, scanId, quota };
 }
