@@ -126,9 +126,9 @@ Configuration is kept separate from code. The website only needs `NEXT_PUBLIC_AP
 
 The API's `/health` endpoint reports which services are configured, without revealing any secrets.
 
-### What the first deployment taught us
+### What the Forth deployment taught us
 
-The first deployment, on 30 September 2026, took 12 "Deployment ready" and "errors" commits in one evening. Each fixed a problem that only appeared once the app ran outside a laptop:
+The forth deployment, on 30 September 2026, took 12 "Deployment ready" and "errors" commits in one evening. Each fixed a problem that only appeared once the app ran outside a laptop:
 
 | Problem found in deployment | Fix at the time | Where it ended up |
 |---|---|---|
