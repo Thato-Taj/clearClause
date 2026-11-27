@@ -2,11 +2,11 @@ import { config } from '../config.js';
 import { db } from '../firebase.js';
 import { log } from '../logger.js';
 import { LANGUAGES } from '../engine/analyze.js';
-import { extractInput, runScan, dailyLimit } from '../engine/pipeline.js';
+import { extractInput, runScan, allowanceFor } from '../engine/pipeline.js';
 import { peek } from '../services/quota.js';
 import { getOrCreateUser, planInfo } from '../services/users.js';
 import { getLinkedUid, redeemLinkCode, unlinkFromChat, getChatPrefs, setChatPrefs } from '../services/links.js';
-import { pseudonym } from '../services/util.js';
+import { pseudonym, usageText } from '../services/util.js';
 import { formatReport } from './format.js';
 
 /**
@@ -35,7 +35,6 @@ const languageList = LANGUAGES.join(', ');
 function helpText(channel, principal, usage) {
   const b = (s) => (channel === 'telegram' ? `<b>${s}</b>` : `*${s}*`);
   const linked = principal.kind === 'user';
-  const left = usage.limit === -1 ? 'unlimited' : `${usage.remaining} of ${usage.limit}`;
   return [
     `👋 ${b('Welcome to ClearClause')}`,
     'I check contracts, terms and conditions and privacy policies against South African law (POPIA, the Consumer Protection Act and more) and explain the problems in plain language.',
@@ -49,9 +48,9 @@ function helpText(channel, principal, usage) {
     '• LANGUAGE isiZulu — get answers in another language',
     `• LINK 123456 — connect to your account (get the code at ${config.webAppUrl}/account)`,
     '• UNLINK — disconnect your account',
-    '• STATUS — see your scans left today',
+    '• STATUS — see how many checks you have left',
     '',
-    `Plan: ${linked ? planInfo(principal.plan).label + ' (linked account)' : 'Free'} · Scans left today: ${left}`,
+    `Plan: ${linked ? planInfo(principal.plan).label + ' (linked account)' : 'Free'} · ${usageText(usage)}`,
   ].join('\n');
 }
 
@@ -77,7 +76,7 @@ export async function handleIncoming(msg) {
     }
 
     if (!msg.getFile && /^\/?(start|help|menu|hi|hello|hey|sawubona|molo|dumela|hallo|status)\b/.test(lower) && text.length < 40) {
-      const usage = await peek(principal.quotaKey, dailyLimit(principal));
+      const usage = await peek(principal.quotaKey, allowanceFor(principal));
       return reply(helpText(channel, principal, usage));
     }
 

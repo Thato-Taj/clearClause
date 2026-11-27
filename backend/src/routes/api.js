@@ -6,7 +6,7 @@ import { db } from '../firebase.js';
 import { ACTS, SEVERITY_LABELS } from '../engine/acts.js';
 import { LANGUAGES, DOCUMENT_TYPES, translateResult } from '../engine/analyze.js';
 import { SEVERITY_WEIGHTS, BANDS } from '../engine/scoring.js';
-import { extractInput, runScan, dailyLimit } from '../engine/pipeline.js';
+import { extractInput, runScan, allowanceFor } from '../engine/pipeline.js';
 import { identify, requireUser } from '../middleware/identity.js';
 import { peek } from '../services/quota.js';
 import { listScans, getScan, deleteScan, updateScan, deleteAllUserData } from '../services/scans.js';
@@ -103,7 +103,7 @@ api.get(
   identify,
   wrap(async (req, res) => {
     const p = req.principal;
-    const usage = await peek(p.quotaKey, dailyLimit(p));
+    const usage = await peek(p.quotaKey, allowanceFor(p));
     if (p.kind !== 'user') {
       return res.json({ user: null, plan: planInfo('anonymous'), usage, accountsEnabled: Boolean(db) });
     }

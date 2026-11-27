@@ -95,7 +95,7 @@ export const PLANS = [
     price: 'R0',
     period: '',
     blurb: 'For anyone about to sign something.',
-    features: ['3 scans a day', 'Website, WhatsApp, Telegram and browser extension', 'All 11 official languages', 'Saved reports when signed in'],
+    features: ['3 scans every 14 days', 'Website, WhatsApp, Telegram and browser extension', 'All 11 official languages', 'Saved reports when signed in'],
   },
   {
     id: 'pro',

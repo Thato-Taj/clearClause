@@ -1,4 +1,5 @@
 import { ACTS } from '../engine/acts.js';
+import { usageText } from '../services/util.js';
 
 const MAX_MESSAGE = 3800; // both platforms allow 4096; leave headroom
 
@@ -79,7 +80,7 @@ export function formatReport(result, { style: styleName, reportUrl = null, quota
   const more = result.clauses.length - maxFindings;
   if (more > 0) footer.push('', `+ ${more} more finding${more === 1 ? '' : 's'} in the full report.`);
   if (reportUrl) footer.push('', s.link('Open the full report', reportUrl));
-  if (quota && quota.limit !== -1) footer.push('', `Scans left today: ${quota.remaining}/${quota.limit}`);
+  if (quota && quota.limit !== -1) footer.push('', s.esc(usageText(quota)));
   footer.push('', s.italic('ClearClause gives guidance, not legal advice.'));
 
   // Pack blocks into as few messages as possible without splitting a block.

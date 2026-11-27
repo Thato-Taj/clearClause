@@ -10,7 +10,7 @@ Checks the page you're on (or text you paste) with the ClearClause API. Works in
    - **Firefox:** `about:debugging#/runtime/this-firefox` → **Load Temporary Add-on** → pick `extension/manifest.json`.
 3. Open any terms page, click the ClearClause icon, then **Use this page** → **Check it**.
 
-Guests get the anonymous daily allowance. To use a plan and save checks to **Reports**, sign in on the website, create an access key under **Account → Browser extension and API**, and paste it into the extension (key icon).
+Guests get the free allowance (3 scans every 14 days by default). To use a plan and save checks to **Reports**, sign in on the website, create an access key under **Account → Browser extension and API**, and paste it into the extension (key icon).
 
 ## Before publishing
 
@@ -22,6 +22,6 @@ Guests get the anonymous daily allowance. To use a plan and save checks to **Rep
 ## How it fits together
 
 - `POST /api/analyze` with `{ text, language, channel: "extension" }`. The `X-API-Key` header is sent when a key is saved.
-- `GET /api/me` fills the status line (plan and scans left today).
+- `GET /api/me` fills the status line (plan and scans left).
 - Results are drawn with DOM APIs only, never `innerHTML`, because page text and model output are untrusted.
 - The popup stops when it closes, so a check in progress is lost. Signed-in checks are still saved to Reports on the server.

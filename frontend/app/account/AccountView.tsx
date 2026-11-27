@@ -9,6 +9,7 @@ import { createKey, createLinkCode, deleteMe, getMe, listKeys, revokeKey, unlink
 import { useAuth } from '@/lib/auth';
 import { btn, cn, formatDate } from '@/lib/cn';
 import { SITE } from '@/lib/site';
+import { allowanceText, nextCheckText } from '@/lib/quota';
 import type { ApiKey, Me } from '@/lib/types';
 
 function Section({ id, title, children }: { id?: string; title: string; children: ReactNode }) {
@@ -114,9 +115,10 @@ export function AccountView() {
             <div className="flex-1">
               <p className="text-2xl font-bold">{me.plan.label}</p>
               <p className="text-ink-2">
-                {me.plan.dailyScans === -1
+                {me.plan.scans === -1
                   ? 'Unlimited checks'
-                  : `${usage?.remaining ?? 0} of ${me.plan.dailyScans} checks left today · resets at midnight`}
+                  : `${usage?.remaining ?? 0} of ${me.plan.scans} checks left · you get ${allowanceText(me.plan.scans, me.plan.periodDays)}`}
+                {me.plan.scans !== -1 && usage?.remaining === 0 && usage.nextAt && ` · next check ${nextCheckText(usage.nextAt)}`}
               </p>
             </div>
             {me.plan.id !== 'business' && (
