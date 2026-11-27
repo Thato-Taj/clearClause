@@ -1,26 +1,181 @@
 @import "tailwindcss";
 
+/* Class-based dark mode (next-themes toggles .dark on <html>) */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ───────────────────────── Design tokens ─────────────────────────
+   White paper, black ink, and three severity colours:
+   red = breaks the law · orange = unfair/risky · pale orange = unclear.
+   Red is reserved for meaning — buttons are ink, not red. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --paper: #ffffff;
+  --paper-2: #faf7f3;
+  --paper-3: #f3eee7;
+  --ink: #17171b;
+  --ink-2: #44444d;
+  --ink-3: #6b6b75;
+  --line: #e6e0d8;
+  --line-strong: #cfc7bc;
+  --margin: #e8a3a3; /* exercise-book margin rule */
+
+  --red: #c1121f;
+  --red-ink: #9e0f1a;
+  --red-bg: #fdeced;
+  --red-mark: #f9c9cc;
+
+  --orange: #e06a00;
+  --orange-ink: #8f4300;
+  --orange-bg: #fff0e1;
+  --orange-mark: #ffd3a8;
+
+  --pale: #f2b36f;
+  --pale-ink: #7d5214;
+  --pale-bg: #fff8ee;
+  --pale-mark: #ffe7c7;
+
+  --focus: #1f5eff;
+  color-scheme: light;
+}
+
+.dark {
+  --paper: #121215;
+  --paper-2: #18181c;
+  --paper-3: #222228;
+  --ink: #f3f1ed;
+  --ink-2: #c9c5bf;
+  --ink-3: #9b978f;
+  --line: #2d2d33;
+  --line-strong: #43434b;
+  --margin: #6b2a2e;
+
+  --red: #ff5c63;
+  --red-ink: #ff8a8f;
+  --red-bg: #2e1416;
+  --red-mark: #5a1d22;
+
+  --orange: #ff8f33;
+  --orange-ink: #ffb26b;
+  --orange-bg: #2f1f10;
+  --orange-mark: #5a3612;
+
+  --pale: #f7c48c;
+  --pale-ink: #f7d1a6;
+  --pale-bg: #2a2318;
+  --pale-mark: #4a3b22;
+
+  --focus: #7aa2ff;
+  color-scheme: dark;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-paper: var(--paper);
+  --color-paper-2: var(--paper-2);
+  --color-paper-3: var(--paper-3);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-margin: var(--margin);
+  --color-red: var(--red);
+  --color-red-ink: var(--red-ink);
+  --color-red-bg: var(--red-bg);
+  --color-red-mark: var(--red-mark);
+  --color-orange: var(--orange);
+  --color-orange-ink: var(--orange-ink);
+  --color-orange-bg: var(--orange-bg);
+  --color-orange-mark: var(--orange-mark);
+  --color-pale: var(--pale);
+  --color-pale-ink: var(--pale-ink);
+  --color-pale-bg: var(--pale-bg);
+  --color-pale-mark: var(--pale-mark);
+  --color-focus: var(--focus);
+
+  --font-sans: var(--font-body), system-ui, sans-serif;
+  --font-serif: var(--font-display), Georgia, serif;
+  --font-mono: var(--font-mono-face), ui-monospace, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ───────────────────────── Base ───────────────────────── */
+html {
+  font-size: 106.25%; /* 17px base — easy to read */
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  line-height: 1.6;
+  text-rendering: optimizeLegibility;
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+::selection {
+  background: var(--pale-mark);
+  color: var(--ink);
+}
+
+/* ───────────────────────── Signature elements ───────────────────────── */
+
+/* Highlighter stroke behind quoted clause text */
+.mark {
+  padding: 0.05em 0.2em;
+  border-radius: 0.2em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  color: var(--ink);
+}
+.mark-violation { background: linear-gradient(transparent 8%, var(--red-mark) 8%, var(--red-mark) 92%, transparent 92%); }
+.mark-concern { background: linear-gradient(transparent 8%, var(--orange-mark) 8%, var(--orange-mark) 92%, transparent 92%); }
+.mark-vague { background: linear-gradient(transparent 8%, var(--pale-mark) 8%, var(--pale-mark) 92%, transparent 92%); }
+
+/* Exercise-book margin: a thin red rule down the left of a "page" */
+.margin-rule {
+  position: relative;
+}
+.margin-rule::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  background: var(--margin);
+}
+
+/* Faint ruled lines, used sparingly on hero paper */
+.ruled {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(2rem - 1px),
+    color-mix(in srgb, var(--line) 70%, transparent) calc(2rem - 1px),
+    color-mix(in srgb, var(--line) 70%, transparent) 2rem
+  );
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.rise { animation: rise 0.35s ease-out both; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* ───────────────────────── Print (Save as PDF) ───────────────────────── */
+@media print {
+  @page { margin: 16mm; }
+  html { font-size: 11pt; }
+  .no-print { display: none !important; }
+  body { background: #fff; color: #000; }
+  .print-break-avoid { break-inside: avoid; }
+  a { color: inherit; text-decoration: none; }
 }
